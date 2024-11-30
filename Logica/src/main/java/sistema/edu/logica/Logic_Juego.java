@@ -4,18 +4,22 @@ import sistema.edu.logica.PIEZAS.Peon;
 import sistema.edu.logica.PIEZAS.Piezas;
 import sistema.edu.logica.PIEZAS.Rey;
 import sistema.edu.logica.PIEZAS.reina;
+import sistema.edu.logica.Puntuacion.SistemaPuntuacion;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Logic_Juego {
     // Atributos de la clase
     private Tablero_De_Ajedrez board; // Tablero de ajedrez donde se jugará la partida
     private Piezas.Color currentTurn; // Indica de quién es el turno actual (blanco o negro)
-
+    // Atributo en la clase Logic_Juego
+    private SistemaPuntuacion sistemaPuntuacion;
     // Constructor de la clase
     public Logic_Juego() {
         board = new Tablero_De_Ajedrez(); // Inicializa el tablero de ajedrez
         currentTurn = Piezas.Color.WHITE; // Empieza el juego con el turno de las piezas blancas
+        sistemaPuntuacion = new SistemaPuntuacion();
     }
 
     // Método que verifica si el rey del jugador está en jaque
@@ -103,43 +107,52 @@ public class Logic_Juego {
     }
 
     // Método para mover una pieza en el tablero
+
+
     public boolean movePiece(int startRow, int startCol, int endRow, int endCol) {
-        // Verifica si las posiciones son válidas
         if (!board.isValidPosition(startRow, startCol) || !board.isValidPosition(endRow, endCol)) {
             return false;
         }
 
-        Piezas piece = board.getPiece(startRow, startCol); // Obtiene la pieza que se quiere mover
+        Piezas piece = board.getPiece(startRow, startCol);
 
-        // Verifica si la pieza existe y si es del color correspondiente
         if (piece == null || piece.getColor() != currentTurn) {
             return false;
         }
 
-        // Verifica si el movimiento de la pieza es válido
         if (piece.isValidMove(startRow, startCol, endRow, endCol, board)) {
-            Piezas capturedPiece = board.getPiece(endRow, endCol); // Guarda la pieza capturada (si la hay)
-            board.movePiece(startRow, startCol, endRow, endCol); // Realiza el movimiento
+            Piezas capturedPiece = board.getPiece(endRow, endCol);
 
-            // Verifica si el movimiento pone al rey en jaque
-            if (isInCheck(currentTurn)) {
-                // Deshacer el movimiento si deja al jugador en jaque
-                board.movePiece(endRow, endCol, startRow, startCol);
-                board.setPiece(endRow, endCol, capturedPiece);
-                return false; // Movimiento no válido
+            // Mover la pieza
+            board.movePiece(startRow, startCol, endRow, endCol);
+
+            // Actualizar puntuación si hay una captura
+            if (capturedPiece != null) {
+                sistemaPuntuacion.actualizarPuntuacion(capturedPiece, currentTurn);
             }
 
-            // Verifica si el peón ha llegado a la última fila para promoverlo
-            if (piece instanceof Peon && (endRow == 0 || endRow == 7)) {
-                promotePawn(endRow, endCol); // Promociona al peón
-            }
-
-            // Cambia el turno después de un movimiento válido
+            // Cambiar turno
             currentTurn = (currentTurn == Piezas.Color.WHITE) ? Piezas.Color.BLACK : Piezas.Color.WHITE;
-            return true; // Movimiento realizado correctamente
+            return true;
         }
 
-        return false; // Movimiento no válido
+        return false;
+    }
+
+    public List<int[]> getPossibleMoves(int row, int col) {
+        List<int[]> moves = new ArrayList<>();
+        Piezas piece = board.getPiece(row, col); // Obtén la pieza en la posición seleccionada
+
+        if (piece != null && piece.getColor() == currentTurn) {
+            for (int endRow = 0; endRow < 8; endRow++) {
+                for (int endCol = 0; endCol < 8; endCol++) {
+                    if (piece.isValidMove(row, col, endRow, endCol, board)) {
+                        moves.add(new int[]{endRow, endCol}); // Agrega movimientos válidos
+                    }
+                }
+            }
+        }
+        return moves;
     }
 
     // Método para promover un peón
@@ -163,4 +176,9 @@ public class Logic_Juego {
     public Tablero_De_Ajedrez getBoard() {
         return board; // Retorna el tablero de ajedrez
     }
+
+    // Método para obtener puntuaciones actuales
+    public SistemaPuntuacion getSistemaPuntuacion() {
+        return sistemaPuntuacion;
+        }
 }

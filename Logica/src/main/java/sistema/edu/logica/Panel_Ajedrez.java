@@ -5,6 +5,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 public class Panel_Ajedrez extends JFrame {
     public Logic_Juego game;
@@ -12,7 +13,8 @@ public class Panel_Ajedrez extends JFrame {
        private JLabel statusLabel;
     private int selectedRow = -1;
       private int selectedCol = -1;
-
+    private JLabel puntosBlancoLabel;
+    private JLabel puntosNegroLabel;
     public Panel_Ajedrez() {
         game = new Logic_Juego();
         boardButtons = new JButton[8][8];
@@ -22,27 +24,53 @@ public class Panel_Ajedrez extends JFrame {
     }
 
     private void initializeUI() {
+        puntosBlancoLabel = new JLabel("Puntos Blancos: 0");
+        puntosNegroLabel = new JLabel("Puntos Negros: 0");
+
+        JPanel puntuacionPanel = new JPanel();
+        puntuacionPanel.add(puntosBlancoLabel);
+        puntuacionPanel.add(puntosNegroLabel);
+
+
         setTitle("Ajedrez");
         setSize(600, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
         JPanel boardPanel = new JPanel(new GridLayout(8, 8));
+
+        // Colores típicos del ajedrez: madera oscura y clara
+        Color darkWood = new Color(139, 69, 19); // Marrón oscuro
+        Color lightWood = new Color(222, 184, 135); // Marrón claro
+
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
                 boardButtons[row][col] = new JButton();
                 boardButtons[row][col].setFont(new Font("DejaVu Sans", Font.PLAIN, 30));
                 boardButtons[row][col].addActionListener(new MoveActionListener(row, col));
+
+                // Alternar los colores de las casillas
+                if ((row + col) % 2 == 0) {
+                    boardButtons[row][col].setBackground(lightWood);
+                } else {
+                    boardButtons[row][col].setBackground(darkWood);
+                }
+
+                boardButtons[row][col].setOpaque(true);
+                boardButtons[row][col].setBorderPainted(false);
+
                 boardPanel.add(boardButtons[row][col]);
             }
         }
 
         add(boardPanel, BorderLayout.CENTER);
+        add(puntuacionPanel, BorderLayout.NORTH);
         add(statusLabel, BorderLayout.SOUTH);
 
         updateBoard();
         setVisible(true);
     }
+
 
     public void updateBoard() {
         for (int row = 0; row < 8; row++) {
@@ -56,6 +84,11 @@ public class Panel_Ajedrez extends JFrame {
             }
         }
     }
+    private void updatePuntuacion() {
+        puntosBlancoLabel.setText("Puntos Blancos: " + game.getSistemaPuntuacion().getPuntosBlanco());
+        puntosNegroLabel.setText("Puntos Negros: " + game.getSistemaPuntuacion().getPuntosNegro());
+
+    }
 
     class MoveActionListener implements ActionListener {
         private int row;
@@ -68,45 +101,31 @@ public class Panel_Ajedrez extends JFrame {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            // Verifica si no hay ninguna pieza seleccionada aún
             if (selectedRow == -1 && selectedCol == -1) {
-                // Obtiene la pieza en la posición actual del tablero (fila y columna)
+                // Selecciona una pieza
                 Piezas piece = game.getBoard().getPiece(row, col);
 
-                // Verifica si hay una pieza en esa posición y si pertenece al jugador del turno actual
                 if (piece != null && piece.getColor() == game.getCurrentTurn()) {
-                    // Almacena la posición de la pieza seleccionada (fila y columna)
                     selectedRow = row;
                     selectedCol = col;
 
-                    // Cambia el color de la casilla seleccionada a gris
-                    boardButtons[selectedRow][selectedCol].setBackground(Color.GRAY);
-                    System.out.println("Pieza seleccionada en (" + selectedRow + ", " + selectedCol + ")");
+                    // Resaltar los movimientos posibles
+                    highlightPossibleMoves(row, col);
                 }
             } else {
-                // Intenta mover la pieza seleccionada a la nueva posición (fila y columna actuales)
+                // Intenta mover la pieza seleccionada
                 if (game.movePiece(selectedRow, selectedCol, row, col)) {
-
-                    // Si el movimiento es válido, actualiza la visualización del tablero
                     updateBoard();
-                    // Resetea la selección de la pieza (ya no hay pieza seleccionada)
+                    updatePuntuacion(); // Actualizar la puntuación
                     selectedRow = -1;
                     selectedCol = -1;
-                    // Actualiza el estado del juego, como el turno y posibles mensajes de jaque
-                    updateStatus();
+                    resetBoardColors(); // Limpia los colores resaltados
+                    updateStatus(); // Actualiza el estado del turno
                 } else {
-                    // Si el movimiento es inválido, muestra un mensaje de advertencia en una ventana
-                    JOptionPane.showMessageDialog(null,
-                            "Movimiento inválido.",
-                            "Advertencia",
-                            JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(null, "Movimiento inválido.", "Advertencia", JOptionPane.WARNING_MESSAGE);
                 }
             }
         }
-    }
-    //vovler al color original
-        public Color getOriginalColor(int row, int col) {
-        return (row + col) % 2 == 0 ? Color.WHITE : Color.BLACK;
     }
 
 
@@ -158,40 +177,27 @@ public class Panel_Ajedrez extends JFrame {
         }
     }
 
+    private void highlightPossibleMoves(int row, int col) {
+        resetBoardColors(); // Limpia los colores previos
+        List<int[]> possibleMoves = game.getPossibleMoves(row, col); // Obtén movimientos válidos
 
-    private void promotePawn(int row, int col) {
-        // Diálogo para seleccionar promoción
-        String[] options = {"Reina", "Torre", "Alfil", "Caballo"};
-        int choice = JOptionPane.showOptionDialog(
-                this,
-                "Selecciona una pieza para promover:",
-                "Promoción de Peón",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                options,
-                options[0]
-        );
-
-        Piezas promotedPiece;
-        switch (choice) {
-            case 1:
-                promotedPiece = new torre(game.getCurrentTurn());
-                break;
-            case 2:
-                promotedPiece = new Alfil(game.getCurrentTurn());
-                break;
-            case 3:
-                promotedPiece = new Caballo(game.getCurrentTurn());
-                break;
-            default:
-                promotedPiece = new reina(game.getCurrentTurn());
-                break;
+        for (int[] move : possibleMoves) {
+            int moveRow = move[0];
+            int moveCol = move[1];
+            boardButtons[moveRow][moveCol].setBackground(Color.DARK_GRAY); // Resalta en amarillo
         }
-
-        game.getBoard().setPiece(row, col, promotedPiece);
-        restartGame(); // Actualizar la UI para mostrar la nueva pieza
     }
+    private void resetBoardColors() {
+        Color darkWood = new Color(139, 69, 19); // Marrón oscuro
+        Color lightWood = new Color(222, 184, 135); // Marrón claro
+
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                boardButtons[row][col].setBackground((row + col) % 2 == 0 ? lightWood : darkWood);
+            }
+        }
+    }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Panel_Ajedrez());
